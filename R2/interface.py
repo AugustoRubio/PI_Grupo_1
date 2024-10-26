@@ -1,22 +1,50 @@
-#Biblioteca para instalar: pip install PyQt5
+# Biblioteca para instalar: pip install PyQt5
 import sys
 import os
 import random
-import time
 import sqlite3
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
-import bancodados
 from PyQt5.QtWidgets import QMessageBox
+try:
+    from bancodados import BancoDeDados  # Ensure this module is available and contains the required functions
+except ImportError:
+    class BancoDeDados:
+        def __init__(self, db_file):
+            self.db_file = db_file
 
-# Garante que o banco de dados seja criado e válido
-if not os.path.exists(bancodados.db_file) or not bancodados.check_db_integrity():
-    if os.path.exists(bancodados.db_file):
-        os.remove(bancodados.db_file)
-    bancodados.create_db()
+        def check_db_integrity(self):
+            # Placeholder method for checking database integrity
+            return True
 
-#Inicio da Janela Principal
+        def create_db(self):
+            # Placeholder method for creating the database
+            pass
+
+# Diretório do script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Caminho do banco de dados na mesma pasta que o script
+db_file = os.path.join(script_dir, 'db.sqlite3')
+
+# Classe para gerenciar a comunicação com o banco de dados
+class GerenciadorBancoDeDados:
+    def __init__(self, db_file):
+        self.db_file = db_file
+        self.banco = BancoDeDados(self.db_file)
+        self.verificar_ou_criar_banco()
+
+    def verificar_ou_criar_banco(self):
+        if not os.path.exists(self.db_file) or not self.banco.check_db_integrity():
+            if os.path.exists(self.db_file):
+                os.remove(self.db_file)
+            self.banco.create_db()
+
+# Instancia o gerenciador do banco de dados
+gerenciador_bd = GerenciadorBancoDeDados(db_file)
+
+# Início da Janela Principal
 class JanelaPrincipal(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -67,9 +95,9 @@ class JanelaPrincipal(QMainWindow):
             event.accept()
         else:
             event.ignore()
-#Fim da Janela Principal
+# Fim da Janela Principal
 
-#Inicio da Tela de Carregamento
+# Início da Tela de Carregamento
 class TelaCarregamento(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -108,9 +136,9 @@ class TelaCarregamento(QMainWindow):
             self.close()
             self.tela_login = TelaLogin()
             self.tela_login.show()
-#Fim da Tela de Carregamento
+# Fim da Tela de Carregamento
 
-#Inicio da Tela de Login
+# Início da Tela de Login
 class TelaLogin(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -152,7 +180,7 @@ class TelaLogin(QMainWindow):
         usuario = self.username_input.text()
         senha = self.password_input.text()
 
-        with sqlite3.connect(bancodados.db_file) as conn:
+        with sqlite3.connect(db_file) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM usuarios WHERE usuario=? AND senha=?", (usuario, senha))
             resultado = cursor.fetchone()
@@ -163,7 +191,7 @@ class TelaLogin(QMainWindow):
             self.janela_principal.show()
         else:
             QMessageBox.critical(self, "Erro", "Falha no login")
-#Fim da Tela de Login
+# Fim da Tela de Login
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

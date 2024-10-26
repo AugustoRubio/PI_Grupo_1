@@ -2,7 +2,9 @@ import sqlite3
 import os
 from datetime import datetime
 
-db_file = 'db.sqlite3'
+# Obtém o diretório do script
+script_dir = os.path.dirname(__file__)
+db_file = os.path.join(script_dir, 'db.sqlite3')
 
 def check_db_integrity():
     try:
