@@ -1,4 +1,5 @@
-# Biblioteca para instalar: pip install PyQt5
+# pip install --upgrade pip
+# Biblioteca para instalar: pip install PyQt5 PyQt5-sip PyQtWebEngine
 import sys
 import os
 import random
