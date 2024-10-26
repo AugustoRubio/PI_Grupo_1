@@ -3,10 +3,11 @@ import sys
 import os
 import random
 import sqlite3
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar, QTableWidget, QTableWidgetItem
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QMessageBox
+
 try:
     from bancodados import BancoDeDados  # Ensure this module is available and contains the required functions
 except ImportError:
@@ -44,6 +45,9 @@ class GerenciadorBancoDeDados:
 # Instancia o gerenciador do banco de dados
 gerenciador_bd = GerenciadorBancoDeDados(db_file)
 
+# Define a cor de fundo em HEX
+background_color = "#000000"  # Preto
+
 # Início da Janela Principal
 class JanelaPrincipal(QMainWindow):
     def __init__(self):
@@ -56,6 +60,7 @@ class JanelaPrincipal(QMainWindow):
         layout = QVBoxLayout()
 
         self.selecionar_dispositivo_button = QPushButton("Selecionar Dispositivo", self)
+        self.selecionar_dispositivo_button.clicked.connect(self.mostrar_tabela_computadores)
         layout.addWidget(self.selecionar_dispositivo_button)
 
         self.adicionar_remover_dispositivo_button = QPushButton("Adicionar/Remover Dispositivo", self)
@@ -70,6 +75,12 @@ class JanelaPrincipal(QMainWindow):
 
         layout.setAlignment(Qt.AlignCenter)
         self.central_widget.setLayout(layout)
+
+        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+
+    def mostrar_tabela_computadores(self):
+        self.janela_tabela_computadores = JanelaTabelaComputadores()
+        self.janela_tabela_computadores.show()
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -128,6 +139,8 @@ class TelaCarregamento(QMainWindow):
         self.progresso = 0
         self.timer.start(random.randint(40, 70))  # Intervalo aleatório entre 4 a 7 segundos
 
+        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+
     def atualizar_progresso(self):
         self.progresso += 1
         self.progress_bar.setValue(self.progresso)
@@ -176,6 +189,8 @@ class TelaLogin(QMainWindow):
 
         self.central_widget.setLayout(layout)
 
+        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+
     def verificar_login(self):
         usuario = self.username_input.text()
         senha = self.password_input.text()
@@ -192,6 +207,52 @@ class TelaLogin(QMainWindow):
         else:
             QMessageBox.critical(self, "Erro", "Falha no login")
 # Fim da Tela de Login
+
+# Início da Janela de Tabela de Computadores
+class JanelaTabelaComputadores(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Tabela de Computadores")
+        self.setFixedSize(600, 400)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+
+        layout = QVBoxLayout()
+
+        self.tabela = QTableWidget(self)
+        self.tabela.setColumnCount(5)
+        self.tabela.setHorizontalHeaderLabels(["ID", "IP", "Porta", "Opções", "Usuário"])
+        layout.addWidget(self.tabela)
+
+        self.carregar_dados()
+
+        layout.setAlignment(Qt.AlignCenter)
+        self.central_widget.setLayout(layout)
+
+        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+
+    def carregar_dados(self):
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, ip, porta, opcoes, usuario FROM computadores")
+            registros = cursor.fetchall()
+
+        self.tabela.setRowCount(len(registros))
+        for row_idx, row_data in enumerate(registros):
+            for col_idx, col_data in enumerate(row_data):
+                self.tabela.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.center()
+
+    def center(self):
+        frame_geometry = self.frameGeometry()
+        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+        center_point = QApplication.desktop().screenGeometry(screen).center()
+        frame_geometry.moveCenter(center_point)
+        self.move(frame_geometry.topLeft())
+# Fim da Janela de Tabela de Computadores
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
