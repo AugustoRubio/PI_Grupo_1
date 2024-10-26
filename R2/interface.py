@@ -1,3 +1,4 @@
+#Biblioteca para instalar: pip install PyQt5
 import sys
 import os
 import random
