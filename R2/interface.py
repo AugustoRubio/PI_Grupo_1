@@ -8,21 +8,20 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushB
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QMessageBox
+from adicionar_disp_win import Computador  # Ensure Computador class is correctly defined in adicionar_disp_win module
 
-try:
-    from bancodados import BancoDeDados  # Ensure this module is available and contains the required functions
-except ImportError:
-    class BancoDeDados:
-        def __init__(self, db_file):
-            self.db_file = db_file
+# Define the BancoDeDados class if it is not already defined in the bancodados module
+class BancoDeDados:
+    def __init__(self, db_file):
+        self.db_file = db_file
 
-        def check_db_integrity(self):
-            # Placeholder method for checking database integrity
-            return True
+    def check_db_integrity(self):
+        # Dummy implementation, replace with actual integrity check
+        return True
 
-        def create_db(self):
-            # Placeholder method for creating the database
-            pass
+    def create_db(self):
+        # Dummy implementation, replace with actual database creation logic
+        pass
 
 # Diretório do script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,8 +45,9 @@ class GerenciadorBancoDeDados:
 # Instancia o gerenciador do banco de dados
 gerenciador_bd = GerenciadorBancoDeDados(db_file)
 
-# Define a cor de fundo em HEX
-background_color = "#000000"  # Preto
+# Define a cor de fundo e a cor da fonte em HEX
+background_color = "#FFFFFF"  # Branco
+font_color = "#000000"  # Preto
 
 # Início da Janela Principal
 class JanelaPrincipal(QMainWindow):
@@ -65,6 +65,7 @@ class JanelaPrincipal(QMainWindow):
         layout.addWidget(self.selecionar_dispositivo_button)
 
         self.adicionar_remover_dispositivo_button = QPushButton("Adicionar/Remover Dispositivo", self)
+        self.adicionar_remover_dispositivo_button.clicked.connect(self.mostrar_janela_adicionar_remover_dispositivo)
         layout.addWidget(self.adicionar_remover_dispositivo_button)
 
         self.historico_eventos_button = QPushButton("Histórico de Eventos", self)
@@ -77,7 +78,7 @@ class JanelaPrincipal(QMainWindow):
         layout.setAlignment(Qt.AlignCenter)
         self.central_widget.setLayout(layout)
 
-        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
 
     def mostrar_tabela_computadores(self):
         self.janela_tabela_computadores = JanelaTabelaComputadores()
@@ -107,6 +108,10 @@ class JanelaPrincipal(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def mostrar_janela_adicionar_remover_dispositivo(self):
+        self.janela_adicionar_remover_dispositivo = JanelaAdicionarRemoverDispositivo()
+        self.janela_adicionar_remover_dispositivo.show()
 # Fim da Janela Principal
 
 # Início da Tela de Carregamento
@@ -140,7 +145,7 @@ class TelaCarregamento(QMainWindow):
         self.progresso = 0
         self.timer.start(random.randint(40, 70))  # Intervalo aleatório entre 4 a 7 segundos
 
-        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
 
     def atualizar_progresso(self):
         self.progresso += 1
@@ -190,7 +195,7 @@ class TelaLogin(QMainWindow):
 
         self.central_widget.setLayout(layout)
 
-        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
 
     def verificar_login(self):
         usuario = self.username_input.text()
@@ -230,7 +235,7 @@ class JanelaTabelaComputadores(QMainWindow):
         layout.setAlignment(Qt.AlignCenter)
         self.central_widget.setLayout(layout)
 
-        self.setStyleSheet(f"background-color: {background_color}; color: white;")
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
 
     def carregar_dados(self):
         with sqlite3.connect(db_file) as conn:
@@ -254,6 +259,83 @@ class JanelaTabelaComputadores(QMainWindow):
         frame_geometry.moveCenter(center_point)
         self.move(frame_geometry.topLeft())
 # Fim da Janela de Tabela de Computadores
+
+# Início da Janela de Adicionar/Remover Dispositivo
+class JanelaAdicionarRemoverDispositivo(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Adicionar/Remover Dispositivo")
+        self.setFixedSize(400, 300)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+
+        layout = QVBoxLayout()
+
+        self.ip_label = QLabel("IP do Host:", self)
+        layout.addWidget(self.ip_label)
+        self.ip_input = QLineEdit(self)
+        self.ip_input.setPlaceholderText("IP do Host")
+        layout.addWidget(self.ip_input)
+
+        self.porta_label = QLabel("Porta:", self)
+        layout.addWidget(self.porta_label)
+        self.porta_input = QLineEdit(self)
+        self.porta_input.setPlaceholderText("Porta")
+        layout.addWidget(self.porta_input)
+
+        self.opcoes_label = QLabel("Opções:", self)
+        layout.addWidget(self.opcoes_label)
+        self.opcoes_input = QLineEdit(self)
+        self.opcoes_input.setPlaceholderText("Opções")
+        layout.addWidget(self.opcoes_input)
+
+        self.usuario_label = QLabel("Usuário:", self)
+        layout.addWidget(self.usuario_label)
+        self.usuario_input = QLineEdit(self)
+        self.usuario_input.setPlaceholderText("Usuário")
+        layout.addWidget(self.usuario_input)
+
+        self.senha_label = QLabel("Senha:", self)
+        layout.addWidget(self.senha_label)
+        self.senha_input = QLineEdit(self)
+        self.senha_input.setPlaceholderText("Senha")
+        self.senha_input.setEchoMode(QLineEdit.Password)
+        layout.addWidget(self.senha_input)
+
+        self.adicionar_button = QPushButton("Adicionar", self)
+        self.adicionar_button.clicked.connect(self.adicionar_dispositivo)
+        layout.addWidget(self.adicionar_button)
+
+        self.remover_button = QPushButton("Remover", self)
+        self.remover_button.clicked.connect(self.remover_dispositivo)
+        layout.addWidget(self.remover_button)
+
+        self.central_widget.setLayout(layout)
+
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
+
+    def adicionar_dispositivo(self):
+        ip = self.ip_input.text()
+        porta = self.porta_input.text()
+        opcoes = self.opcoes_input.text()
+        usuario = self.usuario_input.text()
+        senha = self.senha_input.text()
+
+        computador = Computador(ip, porta, opcoes, usuario, senha, 1)  # Assuming usuario_id is 1 for now
+        computador.adicionar()
+
+        QMessageBox.information(self, "Sucesso", "Dispositivo adicionado com sucesso")
+
+    def remover_dispositivo(self):
+        ip = self.ip_input.text()
+
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM computadores WHERE ip=?", (ip,))
+            conn.commit()
+
+        QMessageBox.information(self, "Sucesso", "Dispositivo removido com sucesso")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

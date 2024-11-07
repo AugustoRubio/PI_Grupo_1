@@ -45,7 +45,9 @@ def create_db():
             porta INTEGER NOT NULL,
             opcoes TEXT,
             usuario TEXT NOT NULL,
-            senha TEXT NOT NULL
+            senha TEXT NOT NULL,
+            usuario_id INTEGER,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
         ''')
         
