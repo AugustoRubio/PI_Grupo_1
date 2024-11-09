@@ -4,10 +4,11 @@ import sys
 import os
 import random
 import sqlite3
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar, QTableWidget, QTableWidgetItem, QCheckBox
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QListWidget, QListWidgetItem
 from adicionar_disp_win import Computador  # Ensure Computador class is correctly defined in adicionar_disp_win module
 
 # Define the BancoDeDados class if it is not already defined in the bancodados module
@@ -214,23 +215,29 @@ class TelaLogin(QMainWindow):
             QMessageBox.critical(self, "Erro", "Falha no login")
 # Fim da Tela de Login
 
-# Início da Janela de Tabela de Computadores
+# Fim da Janela de Tabela de Computadores
 class JanelaTabelaComputadores(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Tabela de Computadores")
+        self.setWindowTitle("Lista de Computadores")
         self.setFixedSize(600, 400)
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
         layout = QVBoxLayout()
 
-        self.tabela = QTableWidget(self)
-        self.tabela.setColumnCount(5)
-        self.tabela.setHorizontalHeaderLabels(["ID", "IP", "Porta", "Opções", "Usuário"])
-        layout.addWidget(self.tabela)
+        self.lista_computadores = QListWidget(self)
+        layout.addWidget(self.lista_computadores)
 
         self.carregar_dados()
+
+        self.selecionar_button = QPushButton("Selecionar", self)
+        self.selecionar_button.clicked.connect(self.selecionar_computador)
+        layout.addWidget(self.selecionar_button)
+
+        self.voltar_button = QPushButton("Voltar", self)
+        self.voltar_button.clicked.connect(self.voltar_janela_principal)
+        layout.addWidget(self.voltar_button)
 
         layout.setAlignment(Qt.AlignCenter)
         self.central_widget.setLayout(layout)
@@ -243,24 +250,28 @@ class JanelaTabelaComputadores(QMainWindow):
             cursor.execute("SELECT id, ip, porta, opcoes, usuario FROM computadores")
             registros = cursor.fetchall()
 
-        self.tabela.setRowCount(len(registros))
-        for row_idx, row_data in enumerate(registros):
-            for col_idx, col_data in enumerate(row_data):
-                self.tabela.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
+        for registro in registros:
+            item_text = f"ID: {registro[0]}, IP: {registro[1]}, Porta: {registro[2]}, Opções: {registro[3]}, Usuário: {registro[4]}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.UserRole, registro[0])  # Store the ID for later use
+            self.lista_computadores.addItem(item)
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.center()
+    def selecionar_computador(self):
+        selected_item = self.lista_computadores.currentItem()
+        if selected_item:
+            computador_id = selected_item.data(Qt.UserRole)
+            self.carregar_detalhes_computador(computador_id)
 
-    def center(self):
-        frame_geometry = self.frameGeometry()
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        center_point = QApplication.desktop().screenGeometry(screen).center()
-        frame_geometry.moveCenter(center_point)
-        self.move(frame_geometry.topLeft())
+    def carregar_detalhes_computador(self, computador_id):
+        self.janela_executar_comando = JanelaExecutarComando(computador_id)
+        self.janela_executar_comando.show()
+
+    def voltar_janela_principal(self):
+        self.close()
+        self.janela_principal = JanelaPrincipal()
+        self.janela_principal.show()
+
 # Fim da Janela de Tabela de Computadores
-
-# Início da Janela de Adicionar/Remover Dispositivo
 class JanelaAdicionarRemoverDispositivo(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -336,6 +347,55 @@ class JanelaAdicionarRemoverDispositivo(QMainWindow):
 
         QMessageBox.information(self, "Sucesso", "Dispositivo removido com sucesso")
 
+class JanelaExecutarComando(QMainWindow):
+    def __init__(self, computador_id):
+        super().__init__()
+        self.setWindowTitle("Executar Comando")
+        self.setFixedSize(400, 300)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.computador_id = computador_id
+
+        layout = QVBoxLayout()
+
+        self.button_bitlocker = QPushButton("Gerenciar Bitlocker", self)
+        layout.addWidget(self.button_bitlocker)
+
+        self.button_acesso_remoto = QPushButton("Acesso Remoto", self)
+        self.button_acesso_remoto.clicked.connect(self.acesso_remoto)
+        layout.addWidget(self.button_acesso_remoto)
+
+        self.button_localizar_dispositivo = QPushButton("Localizar Dispositivo", self)
+        layout.addWidget(self.button_localizar_dispositivo)
+
+        self.voltar_button = QPushButton("Voltar", self)
+        self.voltar_button.clicked.connect(self.voltar_janela_principal)
+        layout.addWidget(self.voltar_button)
+
+        self.central_widget.setLayout(layout)
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
+
+    def voltar_janela_principal(self):
+        self.close()
+        self.janela_principal = JanelaPrincipal()
+        self.janela_principal.show()
+
+    def acesso_remoto(self):
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT ip FROM computadores WHERE id=?", (self.computador_id,))
+            computador = cursor.fetchone()
+
+        if computador:
+            ip = computador[0]
+            comando_rdp = f'mstsc /v:{ip}'
+            resultado = os.system(comando_rdp)
+            if resultado != 0:
+                QMessageBox.critical(self, "Erro", "Falha ao tentar acessar o computador remotamente")
+                self.show()
+        else:
+            QMessageBox.critical(self, "Erro", "Computador não encontrado")
+            self.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
