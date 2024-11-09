@@ -5,7 +5,9 @@ import os
 # Ensure that JanelaExecutarComando is correctly imported from the right module
 try:
     from interface import JanelaExecutarComando
+    import subprocess
 except ImportError:
+    import subprocess
     class JanelaExecutarComando:
         def obter_ip_selecionado(self):
             # Dummy implementation for the purpose of this example
@@ -30,27 +32,45 @@ class Computador:
             conn.commit()
             registrar_alteracao('computadores', 'ip', None, self.ip)
     
-    def executar_comando_winrm(self, comando):
+    def verificar_bitlocker(self):
+
+        comando = 'Get-BitLockerVolume | Select-Object -ExpandProperty VolumeStatus'
 
         try:
-            p = Protocol(
-                endpoint=f'http://{self.ip}:{self.porta}/wsman',
-                transport='ntlm',
-                username=self.usuario,
-                password=self.senha,
-                server_cert_validation='ignore'
-            )
+            with sqlite3.connect(db_file) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                SELECT usuario, senha
+                FROM computadores
+                WHERE ip = ?
+                ''', (self.ip,))
+                result = cursor.fetchone()
+                if result:
+                    usuario, senha = result
+                else:
+                    print("Credenciais não encontradas no banco de dados.")
+                    return None
 
+            p = Protocol(
+                endpoint=f'http://{self.ip}:5985/wsman',
+                transport='ntlm',
+                username=usuario,
+                password=senha
+            )
             shell_id = p.open_shell()
-            command_id = p.run_command(shell_id, comando)
+            command_id = p.run_command(shell_id, 'powershell.exe', ['-Command', comando])
             std_out, std_err, status_code = p.get_command_output(shell_id, command_id)
             p.cleanup_command(shell_id, command_id)
             p.close_shell(shell_id)
 
-            return std_out.decode('utf-8'), std_err.decode('utf-8'), status_code
+            if status_code == 0:
+                return std_out.decode('utf-8').strip()
+            else:
+                print(f"Error: {std_err.decode('utf-8')}")
+                return None
         except Exception as e:
             print(f"An error occurred: {e}")
-            return None, None, None
+            return None
         
     def conectar_rdp(self):
 

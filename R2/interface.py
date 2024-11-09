@@ -4,7 +4,7 @@ import sys
 import os
 import random
 import sqlite3
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar, QTableWidget, QTableWidgetItem, QCheckBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QProgressBar, QTableWidget, QTableWidgetItem, QCheckBox, QInputDialog
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QMessageBox
@@ -268,8 +268,6 @@ class JanelaTabelaComputadores(QMainWindow):
 
     def voltar_janela_principal(self):
         self.close()
-        self.janela_principal = JanelaPrincipal()
-        self.janela_principal.show()
 
 # Fim da Janela de Tabela de Computadores
 class JanelaAdicionarRemoverDispositivo(QMainWindow):
@@ -359,6 +357,7 @@ class JanelaExecutarComando(QMainWindow):
         layout = QVBoxLayout()
 
         self.button_bitlocker = QPushButton("Gerenciar Bitlocker", self)
+        self.button_bitlocker.clicked.connect(self.executar_comando)
         layout.addWidget(self.button_bitlocker)
 
         self.button_acesso_remoto = QPushButton("Acesso Remoto", self)
@@ -396,6 +395,23 @@ class JanelaExecutarComando(QMainWindow):
         else:
             QMessageBox.critical(self, "Erro", "Computador não encontrado")
             self.show()
+    
+    def executar_comando(self):
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT ip, porta, opcoes, usuario, senha, usuario_id FROM computadores WHERE id=?", (self.computador_id,))
+            computador = cursor.fetchone()
+
+        if computador:
+            ip, porta, opcoes, usuario, senha, usuario_id = computador
+            comp = Computador(ip, porta, opcoes, usuario, senha, usuario_id)
+            resultado = comp.verificar_bitlocker()
+            if resultado:
+                QMessageBox.information(self, "Sucesso", f"Status do BitLocker:\n{resultado}")
+            else:
+                QMessageBox.critical(self, "Erro", "Erro ao verificar o status do BitLocker")
+        else:
+            QMessageBox.critical(self, "Erro", "Computador não encontrado")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
