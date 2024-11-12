@@ -65,6 +65,20 @@ def create_db():
         
         conn.commit()
 
+        # Cria a tabela scanner
+        cursor.execute('''
+        CREATE TABLE scanner (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            data TEXT NOT NULL,
+            hostname TEXT,
+            mac_address TEXT,
+            ip TEXT NOT NULL,
+            portas TEXT,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+        ''')
+
 def registrar_alteracao(tabela, coluna, valor_antigo, valor_novo):
     with sqlite3.connect(db_file) as conn:
         cursor = conn.cursor()

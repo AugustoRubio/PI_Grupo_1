@@ -9,6 +9,13 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtWidgets import QListWidget, QListWidgetItem
+import socket
+import ipaddress
+import nmap
+from datetime import datetime
+from datetime import datetime
+import socket
+import ipaddress
 from adicionar_disp_win import Computador  # Ensure Computador class is correctly defined in adicionar_disp_win module
 
 # Define the BancoDeDados class if it is not already defined in the bancodados module
@@ -62,14 +69,22 @@ class JanelaPrincipal(QMainWindow):
         layout = QVBoxLayout()
 
         self.selecionar_dispositivo_button = QPushButton("Selecionar Dispositivo", self)
-        self.selecionar_dispositivo_button.clicked.connect(self.mostrar_tabela_computadores)
+        self.selecionar_dispositivo_button.clicked.connect(self.mostrar_mensagem_manutencao)
         layout.addWidget(self.selecionar_dispositivo_button)
 
         self.adicionar_remover_dispositivo_button = QPushButton("Adicionar/Remover Dispositivo", self)
-        self.adicionar_remover_dispositivo_button.clicked.connect(self.mostrar_janela_adicionar_remover_dispositivo)
+        self.adicionar_remover_dispositivo_button.clicked.connect(self.mostrar_mensagem_manutencao)
         layout.addWidget(self.adicionar_remover_dispositivo_button)
+        self.scanner_rede_button = QPushButton("Iniciar Scanner de Rede", self)
+        self.scanner_rede_button.clicked.connect(self.iniciar_scanner_rede)
+        layout.addWidget(self.scanner_rede_button)
+
+        self.resultados_scanner_button = QPushButton("Resultados do Scanner de Rede", self)
+        self.resultados_scanner_button.clicked.connect(self.mostrar_resultados_scanner)
+        layout.addWidget(self.resultados_scanner_button)
 
         self.historico_eventos_button = QPushButton("Histórico de Eventos", self)
+        self.historico_eventos_button.clicked.connect(self.mostrar_mensagem_manutencao)
         layout.addWidget(self.historico_eventos_button)
 
         self.sair_button = QPushButton("Sair", self)
@@ -84,6 +99,17 @@ class JanelaPrincipal(QMainWindow):
     def mostrar_tabela_computadores(self):
         self.janela_tabela_computadores = JanelaTabelaComputadores()
         self.janela_tabela_computadores.show()
+
+    def iniciar_scanner_rede(self):
+        self.janela_scanner_rede = JanelaScannerRede()
+        self.janela_scanner_rede.show()
+
+    def mostrar_resultados_scanner(self):
+        self.janela_resultados_scanner = JanelaResultadosScanner()
+        self.janela_resultados_scanner.show()
+
+    def mostrar_mensagem_manutencao(self):
+        QMessageBox.information(self, "Manutenção", "Esta funcionalidade está em manutenção. Por favor, tente novamente mais tarde.")
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -412,6 +438,170 @@ class JanelaExecutarComando(QMainWindow):
                 QMessageBox.critical(self, "Erro", "Erro ao verificar o status do BitLocker")
         else:
             QMessageBox.critical(self, "Erro", "Computador não encontrado")
+
+class JanelaScannerRede(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Scanner de Rede")
+        self.setFixedSize(600, 400)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+
+        layout = QVBoxLayout()
+
+        self.resultados_text = QLabel("Resultados do Scanner de Rede:", self)
+        layout.addWidget(self.resultados_text)
+
+        self.resultados_lista = QListWidget(self)
+        layout.addWidget(self.resultados_lista)
+
+        self.iniciar_scanner_button = QPushButton("Iniciar Scanner", self)
+        self.iniciar_scanner_button.clicked.connect(self.iniciar_scanner)
+        layout.addWidget(self.iniciar_scanner_button)
+
+        self.voltar_button = QPushButton("Voltar", self)
+        self.voltar_button.clicked.connect(self.voltar_janela_principal)
+        layout.addWidget(self.voltar_button)
+
+        self.central_widget.setLayout(layout)
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
+
+    def iniciar_scanner(self):
+        self.scanner_rede = ScannerRede()
+        resultados = self.scanner_rede.escanear()
+        if resultados:
+            self.resultados_lista.clear()
+            for resultado in resultados:
+                item_text = f"Hostname: {resultado[0]}, MAC: {resultado[1]}, IP: {resultado[2]}, Portas: {resultado[3]}"
+                self.resultados_lista.addItem(QListWidgetItem(item_text))
+            QMessageBox.information(self, "Sucesso", "Escaneamento de rede concluído com sucesso")
+        else:
+            QMessageBox.critical(self, "Erro", "Erro ao escanear a rede")
+
+    def voltar_janela_principal(self):
+        self.close()
+        self.janela_principal = JanelaPrincipal()
+
+class ScannerRede:
+    def __init__(self, portas_selecionadas=None):
+        self.portas_selecionadas = portas_selecionadas if portas_selecionadas else ['80', '22', '443']
+        self.escaneamento_concluido = False
+
+    def escanear(self):
+        ip = socket.gethostbyname(socket.gethostname())
+        mascara = ipaddress.IPv4Network(f"{ip}/24", strict=False).netmask
+        rede = ipaddress.IPv4Network(f"{ip}/{mascara}", strict=False)
+
+        argumentos = []
+        if self.portas_selecionadas:
+            portas = ','.join(self.portas_selecionadas)
+            argumentos.append(f'-p {portas}')
+
+        argumentos_str = ' '.join(argumentos)
+
+        nm = nmap.PortScanner()
+        try:
+            nm.scan(hosts=str(rede), arguments=argumentos_str)
+
+            resultados = []
+            for host in nm.all_hosts():
+                nome_host = nm[host].hostname() if nm[host].hostname() else 'N/A'
+                endereco_mac = nm[host]['addresses'].get('mac', 'N/A')
+                endereco_ip = nm[host]['addresses'].get('ipv4', 'N/A')
+                portas_abertas = ', '.join([
+                    f"{port}/ABERTA" if port.isdigit() and nm[host].has_tcp(int(port)) and 'tcp' in nm[host] and int(port) in nm[host]['tcp'] and nm[host]['tcp'][int(port)]['state'] == 'open' 
+                    else f"{port}/FECHADA" 
+                    for port in self.portas_selecionadas
+                ])
+                if not portas_abertas:
+                    portas_abertas = 'N/D'
+                resultados.append((nome_host, endereco_mac, endereco_ip, portas_abertas))
+
+            self.salvar_resultados(resultados)
+            self.escaneamento_concluido = True
+            return resultados
+        except Exception as e:
+            print(f"Erro ao executar o comando nmap: {e}")
+            self.escaneamento_concluido = False
+            return None
+
+    def salvar_resultados(self, resultados):
+        try:
+            with sqlite3.connect(db_file) as conn:
+                cursor = conn.cursor()
+                for resultado in resultados:
+                    cursor.execute('''
+                        INSERT INTO scanner (usuario_id, data, hostname, mac_address, ip, portas)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (1, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), resultado[0], resultado[1], resultado[2], resultado[3]))
+                conn.commit()
+        except sqlite3.Error as e:
+            print(f"Erro ao salvar resultados: {e}")
+
+    def obter_informacoes(self):
+        try:
+            with sqlite3.connect(db_file) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM scanner')
+                resultados = cursor.fetchall()
+                return resultados
+        except sqlite3.Error as e:
+            print(f"Erro ao obter informações: {e}")
+            return None
+
+class RedeAtual:
+    def __init__(self):
+        pass
+
+    def obter_rede_atual(self):
+        try:
+            ip = socket.gethostbyname(socket.gethostname())
+            mascara = ipaddress.IPv4Network(f"{ip}/24", strict=False).netmask
+            rede = ipaddress.IPv4Network(f"{ip}/{mascara}", strict=False)
+            return str(rede)
+        except Exception as e:
+            print(f"Erro ao obter a rede atual: {e}")
+            return None
+
+class JanelaResultadosScanner(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Resultados do Scanner de Rede")
+        self.setFixedSize(600, 400)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+
+        layout = QVBoxLayout()
+
+        self.resultados_tabela = QTableWidget(self)
+        self.resultados_tabela.setColumnCount(6)
+        self.resultados_tabela.setHorizontalHeaderLabels(["ID", "Usuário ID", "Data", "Hostname", "MAC Address", "IP", "Portas"])
+        layout.addWidget(self.resultados_tabela)
+
+        self.carregar_dados()
+
+        self.voltar_button = QPushButton("Voltar", self)
+        self.voltar_button.clicked.connect(self.voltar_janela_principal)
+        layout.addWidget(self.voltar_button)
+
+        self.central_widget.setLayout(layout)
+        self.setStyleSheet(f"background-color: {background_color}; color: {font_color};")
+
+    def carregar_dados(self):
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM scanner")
+            registros = cursor.fetchall()
+
+        self.resultados_tabela.setRowCount(len(registros))
+        for row_idx, registro in enumerate(registros):
+            for col_idx, valor in enumerate(registro):
+                self.resultados_tabela.setItem(row_idx, col_idx, QTableWidgetItem(str(valor)))
+
+    def voltar_janela_principal(self):
+        self.close()
+        self.janela_principal = JanelaPrincipal()
+        self.janela_principal.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
